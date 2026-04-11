@@ -1,0 +1,32 @@
+{
+  "name": "enclaveai-smart-contracts",
+  "version": "1.0.0",
+  "description": "Stellar Soroban smart contracts for EnclaveAI decentralized network",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "soroban contract build",
+    "deploy": "soroban contract deploy",
+    "test": "soroban contract test",
+    "invoke": "soroban contract invoke",
+    "install": "soroban contract install"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^12.2.0",
+    "soroban-cli": "^1.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
+  },
+  "keywords": [
+    "stellar",
+    "soroban",
+    "smart-contracts",
+    "blockchain",
+    "privacy",
+    "tee",
+    "ai"
+  ],
+  "author": "EnclaveAI Team",
+  "license": "MIT"
+}
