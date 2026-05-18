@@ -245,19 +245,15 @@ fn build_verify_xdr(
     Ok("AAAAAA==".to_string()) // placeholder XDR base64
 }
 
-// ── gRPC task distribution server ─────────────────────────────────────────────
+// ── gRPC task distribution server (stub) ─────────────────────────────────────
 
 mod grpc {
     use anyhow::Result;
     use tracing::info;
 
     pub async fn serve() -> Result<()> {
-        let addr = "0.0.0.0:50051".parse()?;
-        info!("gRPC task distribution server listening on {addr}");
-        // In production: tonic::transport::Server::builder()
-        //     .add_service(TaskServiceServer::new(TaskServiceImpl))
-        //     .serve(addr).await?;
-        // Kept as a stub to avoid requiring proto compilation in CI.
+        info!("gRPC task distribution server listening on 0.0.0.0:50051");
+        // Production: tonic::transport::Server + TaskServiceServer
         tokio::signal::ctrl_c().await?;
         Ok(())
     }
