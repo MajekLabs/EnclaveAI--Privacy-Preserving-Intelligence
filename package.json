@@ -1,0 +1,17 @@
+{
+  "name": "auranode",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd frontend && npm run dev",
+    "build:frontend": "cd frontend && npm run build",
+    "build:contracts": "cargo build --release --target wasm32-unknown-unknown -p auranode-pool -p auranode-verifier",
+    "build:daemon": "cargo build --release -p node-daemon",
+    "build:circuits": "cd circuits && nargo compile",
+    "test:contracts": "cargo test -p auranode-pool -p auranode-verifier",
+    "sandbox": "bash scripts/launch-sandbox.sh"
+  },
+  "workspaces": [
+    "frontend"
+  ]
+}

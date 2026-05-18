@@ -1,177 +1,82 @@
-'use client'
+import Link from "next/link";
 
-import { useState, useEffect } from 'react'
-import { Shield, Lock, Network, Zap, FileText, Activity } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useStellarWallet } from '@/hooks/use-stellar-wallet'
-import { useTEEConnection } from '@/hooks/use-tee-connection'
-
-export default function HomePage() {
-  const [isConnected, setIsConnected] = useState(false)
-  const { connectWallet, disconnectWallet, publicKey, isConnected: walletConnected } = useStellarWallet()
-  const { connectTEE, isTEEConnected, processingStatus } = useTEEConnection()
-
-  useEffect(() => {
-    setIsConnected(walletConnected && isTEEConnected)
-  }, [walletConnected, isTEEConnected])
-
-  const handleConnect = async () => {
-    if (!walletConnected) {
-      await connectWallet()
-    }
-    if (!isTEEConnected) {
-      await connectTEE()
-    }
-  }
-
+export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-      {/* Header */}
-      <header className="border-b bg-white/50 backdrop-blur-sm dark:bg-slate-900/50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">EnclaveAI</h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-slate-600 dark:text-slate-400">
-                {publicKey ? `Connected: ${publicKey.slice(0, 8)}...` : 'Not Connected'}
-              </div>
-              <Button
-                onClick={isConnected ? disconnectWallet : handleConnect}
-                variant={isConnected ? "outline" : "default"}
-              >
-                {isConnected ? 'Disconnect' : 'Connect Wallet'}
-              </Button>
-            </div>
-          </div>
+    <main className="max-w-5xl mx-auto px-4 py-24 space-y-20">
+      {/* Hero */}
+      <section className="text-center space-y-6">
+        <div className="inline-flex items-center gap-2 border border-violet-500/30 bg-violet-500/10 rounded-full px-4 py-1.5 text-sm text-violet-300">
+          <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
+          Live on Stellar Testnet · Protocol 26
         </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-16">
-        <div className="text-center space-y-6">
-          <h2 className="text-4xl font-bold text-slate-900 dark:text-white">
-            Privacy-Preserving Intelligence
-          </h2>
-          <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
-            Process your sensitive data with AI in secure hardware enclaves. 
-            Zero-knowledge processing ensures your data never leaves the protected environment.
-          </p>
-          <div className="flex items-center justify-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <Lock className="h-5 w-5 text-green-600" />
-              <span className="text-sm font-medium">End-to-End Encrypted</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Network className="h-5 w-5 text-blue-600" />
-              <span className="text-sm font-medium">Decentralized Network</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Zap className="h-5 w-5 text-purple-600" />
-              <span className="text-sm font-medium">TEE Protected</span>
-            </div>
-          </div>
+        <h1 className="text-5xl font-bold tracking-tight">
+          Confidential AI Inference
+          <br />
+          <span className="text-violet-400">Verified On-Chain</span>
+        </h1>
+        <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          AuraNode pairs Intel SGX hardware enclaves with BN254 ZK proofs verified natively
+          on Stellar using CAP-0080. Your data never leaves the enclave. Every result is
+          cryptographically proven.
+        </p>
+        <div className="flex items-center justify-center gap-4">
+          <Link
+            href="/playground"
+            className="bg-violet-600 hover:bg-violet-500 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+          >
+            Try Playground
+          </Link>
+          <Link
+            href="/validators"
+            className="border border-slate-700 hover:border-slate-500 text-slate-300 px-6 py-2.5 rounded-lg font-medium transition-colors"
+          >
+            Live Validators
+          </Link>
         </div>
       </section>
 
-      {/* Main Content */}
-      <section className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="process" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="process">Process Data</TabsTrigger>
-            <TabsTrigger value="history">Processing History</TabsTrigger>
-            <TabsTrigger value="network">Network Status</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="process" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="h-5 w-5" />
-                  <span>Secure AI Processing</span>
-                </CardTitle>
-                <CardDescription>
-                  Upload your documents for AI analysis in a trusted execution environment
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                  <FileText className="h-12 w-12 mx-auto text-slate-400 mb-4" />
-                  <p className="text-slate-600 dark:text-slate-400 mb-4">
-                    Drag and drop your files here or click to browse
-                  </p>
-                  <Button disabled={!isConnected}>
-                    {isConnected ? 'Select Files' : 'Connect Wallet First'}
-                  </Button>
-                </div>
-                {processingStatus && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Processing Status</span>
-                      <span className="text-sm text-slate-600">{processingStatus.status}</span>
-                    </div>
-                    <Progress value={processingStatus.progress} className="w-full" />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Processing History</CardTitle>
-                <CardDescription>
-                  View your past AI processing requests and results
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-slate-500">
-                  <Activity className="h-12 w-12 mx-auto mb-4" />
-                  <p>No processing history available</p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="network" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Active Nodes</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">12</div>
-                  <p className="text-sm text-slate-600">TEE-enabled nodes</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Total Processed</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">1,247</div>
-                  <p className="text-sm text-slate-600">Requests completed</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Network Health</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-purple-600">98.5%</div>
-                  <p className="text-sm text-slate-600">Uptime this month</p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-        </Tabs>
+      {/* Protocol 26 feature grid */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          {
+            cap: "CAP-0080",
+            title: "BN254 Native Verification",
+            desc: "bn254_g1_msm and bn254_pairing_check host functions reduce ZK proof verification cost by ~90% vs Wasm.",
+          },
+          {
+            cap: "CAP-0078",
+            title: "Precise TTL Storage",
+            desc: "Task escrows and proof records use extend_ttl to auto-purge after settlement, keeping ledger storage lean.",
+          },
+          {
+            cap: "CAP-0082",
+            title: "Checked 256-bit Math",
+            desc: "All stake, slash, and bounty arithmetic uses checked_mul / checked_add — no silent overflow vulnerabilities.",
+          },
+        ].map((f) => (
+          <div
+            key={f.cap}
+            className="border border-slate-800 rounded-xl p-5 bg-slate-900/40 space-y-2"
+          >
+            <span className="text-xs font-mono text-violet-400 border border-violet-500/30 rounded px-1.5 py-0.5">
+              {f.cap}
+            </span>
+            <h3 className="font-semibold text-slate-100">{f.title}</h3>
+            <p className="text-sm text-slate-400">{f.desc}</p>
+          </div>
+        ))}
       </section>
-    </div>
-  )
+
+      {/* Architecture diagram */}
+      <section className="border border-slate-800 rounded-xl p-6 bg-slate-900/40 space-y-4">
+        <h2 className="font-semibold text-slate-200">Hardware-to-Ledger Flow</h2>
+        <pre className="text-xs text-slate-400 overflow-x-auto leading-relaxed">
+{`Browser (E2EE)  →  Stellar Event Stream  →  SGX Enclave  →  Noir Proof Engine
+                                                                      ↓
+                    auranode-pool  ←  complete_task  ←  auranode-verifier
+                    (bounty release / slash)              (CAP-0080 pairing check)`}
+        </pre>
+      </section>
+    </main>
+  );
 }
