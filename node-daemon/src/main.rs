@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
     info!("Verifier contract: {}", cfg.verifier_contract);
 
     // Spawn gRPC task distribution server alongside the event loop
-    let grpc_handle = tokio::spawn(grpc::serve());
+    tokio::spawn(grpc::serve());
 
     // Main Horizon event sync loop with exponential back-off
     let mut backoff = Duration::from_secs(1);

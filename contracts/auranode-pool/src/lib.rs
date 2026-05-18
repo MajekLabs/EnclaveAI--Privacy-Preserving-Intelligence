@@ -2,7 +2,7 @@
 //! Handles node registration, collateral staking, task escrow, bounty distribution,
 //! and automatic slashing. Uses CAP-0078 precise TTL controls for storage rent.
 
-#![no_std]
+#![cfg_attr(target_family = "wasm", no_std)]
 
 use soroban_sdk::{
     contract, contractimpl, contracttype, symbol_short,
@@ -52,7 +52,7 @@ pub struct Task {
 }
 
 #[contracttype]
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum TaskStatus {
     Pending,
     Assigned,

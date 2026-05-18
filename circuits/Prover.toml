@@ -1,0 +1,39 @@
+# AuraNode Inference Verification — Sample Prover Inputs
+# Generated for task_id=42, model_hash=(0x1234, 0x5678)
+# Run: nargo prove --package inference_verify
+
+# Public inputs (committed on-chain via auranode-verifier)
+task_id = "0x000000000000000000000000000000000000000000000000000000000000002a"
+
+[output_hash]
+lo = "0x0f7e5a3b2c1d4e6f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f"
+hi = "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b"
+
+[model_hash]
+lo = "0x0000000000000000000000000000000000000000000000000000000000001234"
+hi = "0x0000000000000000000000000000000000000000000000000000000000005678"
+
+# Private witnesses (known only inside the SGX enclave)
+model_output = [
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab",
+  "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab", "0xab"
+]
+
+model_key_nonce = "0x2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e"
+
+execution_trace = [
+  "0x00000000000000000000000000000000000000000000000000000000000000ab",
+  "0x1f2e3d4c5b6a7988796857463524130f1e2d3c4b5a69788796857463524130f",
+  "0x2a3b4c5d6e7f8091a2b3c4d5e6f7809102a3b4c5d6e7f8091a2b3c4d5e6f780",
+  "0x3b4c5d6e7f809102b3c4d5e6f7809102c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f",
+  "0x4c5d6e7f809102a3c4d5e6f7809102b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f80",
+  "0x5d6e7f809102a3b4d5e6f7809102b3c4e5f6a7b8c9d0e1f2a3b4c5d6e7f8091",
+  "0x6e7f809102a3b4c5e6f7809102b3c4d5f6a7b8c9d0e1f2a3b4c5d6e7f809102",
+  "0x7f809102a3b4c5d6f7809102b3c4d5e6a7b8c9d0e1f2a3b4c5d6e7f80910203"
+]

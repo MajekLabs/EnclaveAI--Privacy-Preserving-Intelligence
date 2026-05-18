@@ -1,310 +1,128 @@
-# EnclaveAI Architecture Documentation
+# AuraNode Architecture
 
 ## Overview
 
-EnclaveAI is a decentralized AI processing network that leverages Trusted Execution Environments (TEEs) to ensure complete data privacy. The architecture consists of three main components: a React frontend, Node.js backend, and Stellar smart contracts.
+AuraNode is a decentralized confidential AI inference network on Stellar. It combines Intel SGX hardware enclaves with BN254 ZK proofs verified natively on-chain using Stellar Protocol 26 (CAP-0080).
 
 ## System Architecture
 
 ```
-+-------------------+     +-------------------+     +-------------------+
-|   React Frontend  |     |  Node.js Backend  |     | Stellar Network  |
-|                   |     |                   |     |                   |
-| - User Interface |<--->| - API Gateway     |<--->| - Smart Contracts |
-| - Wallet Connect |     | - TEE Management  |     | - Node Registry   |
-| - File Upload    |     | - Request Queue   |     | - Reputation Sys  |
-+-------------------+     +-------------------+     +-------------------+
-                                |
-                                v
-                        +-------------------+
-                        |   TEE Nodes      |
-                        |                   |
-                        | - Secure Enclaves|
-                        | - AI Processing  |
-                        | - Zero-Knowledge  |
-                        +-------------------+
+Browser (AES-256-GCM E2EE)
+        │
+        ▼
+Stellar Soroban (auranode-pool)   ← submit_task (payload_hash + bounty escrow)
+        │  Horizon SSE event stream
+        ▼
+AuraNode Daemon (node-daemon)     ← listens for task_sub events
+        │
+        ▼
+Intel SGX Enclave                 ← decrypts payload, runs model, produces output_hash
+        │
+        ▼
+Noir Circuit (circuits/)          ← nargo prove → UltraPlonk BN254 proof
+        │
+        ▼
+auranode-verifier                 ← CAP-0080 bn254.pairing_check()
+        │
+        ├─ pass → auranode-pool.complete_task() → bounty released to node
+        └─ fail → auranode-pool.slash_node()    → 20% stake slashed, bounty refunded
 ```
 
 ## Components
 
-### Frontend (React/Next.js)
+### Smart Contracts (Rust / Soroban SDK 26)
 
-**Technology Stack:**
-- Next.js 14 with TypeScript
-- Tailwind CSS + shadcn/ui components
-- Stellar SDK for blockchain integration
-- Lucide React for icons
+**auranode-pool** (`contracts/auranode-pool/`)
+- Node registration with XLM stake collateral (token transfer into escrow)
+- Task submission with bounty escrow
+- `complete_task` — releases bounty to node operator (called by verifier)
+- `slash_node` — slashes 20% of node stake, refunds client (called by verifier)
+- CAP-0078: persistent storage for nodes (30-day TTL), temporary for tasks (24-hour TTL)
+- CAP-0082: all arithmetic uses `checked_mul` / `checked_add` / `checked_sub`
 
-**Key Features:**
-- Wallet connection via Freighter
-- Secure file upload interface
-- Real-time processing status
-- Network monitoring dashboard
-- Processing history
+**auranode-verifier** (`contracts/auranode-verifier/`)
+- Accepts UltraPlonk proof + public inputs from compute nodes
+- CAP-0080: `env.crypto().bn254().g1_mul()`, `.g1_add()`, `.pairing_check()`
+- Stores proof records in temporary storage (48-hour TTL, CAP-0078)
+- Cross-contract calls to `auranode-pool` on pass/fail
 
-**Architecture:**
+**enclaveai-contract** (`smart-contracts/`)
+- Compatibility shim with the same staking/task/slash interface
+- Uses identical CAP-0078/0082 patterns
+
+### ZK Circuit (Noir)
+
+**circuits/src/main.nr**
+- UltraPlonk circuit compiled with Nargo + Barretenberg backend
+- Proves: output_hash binds to model_output (Pedersen hash)
+- Proves: model_key_nonce derived from MRENCLAVE + task_id (model binding)
+- Proves: execution trace is internally consistent (chain of Pedersen hashes)
+- Public inputs: `task_id`, `output_hash`, `model_hash` — committed on-chain
+- Private witnesses: `model_output`, `model_key_nonce`, `execution_trace` — stay in enclave
+
+### Node Daemon (Rust)
+
+**node-daemon/src/**
+- Subscribes to Horizon SSE event stream for `task_sub` events from `auranode-pool`
+- Routes tasks to the SGX enclave runner (`enclave/secure_run.rs`)
+- Generates BN254 UltraPlonk proof via `nargo prove`
+- Submits proof to `auranode-verifier` via Soroban RPC `sendTransaction`
+- Exponential back-off reconnection on Horizon SSE disconnect
+
+**node-daemon/src/enclave/secure_run.rs**
+- SGX attestation stub (production: `sgx_urts::SgxEnclave::create` + ECALL)
+- Deterministic mock inference for testing (SHA-256 of payload_hash)
+- Proof generation stub (production: shells out to `nargo prove`, parses BN254 points)
+
+### Frontend (Next.js 15)
+
+**frontend/src/app/**
+- `/` — Landing page with protocol overview and architecture diagram
+- `/playground` — E2EE inference playground
+  - AES-256-GCM in-browser encryption via Web Crypto API
+  - Freighter wallet connection via `@stellar/freighter-api`
+  - Real `InvokeHostFunction` XDR built with `@stellar/stellar-sdk`
+  - `simulateTransaction` → `assembleTransaction` → Freighter sign → `sendTransaction`
+- `/validators` — Live node stats from `auranode-pool` via Soroban RPC
+
+## Protocol 26 Features
+
+| CAP | Feature | Where Used |
+|---|---|---|
+| CAP-0080 | BN254 native host functions | `auranode-verifier`: `g1_mul`, `g1_add`, `pairing_check` |
+| CAP-0078 | Precise TTL storage | All contracts: `extend_ttl` on instance, persistent, temporary storage |
+| CAP-0082 | Checked 256-bit arithmetic | All contracts: stake, slash, bounty, counter arithmetic |
+
+## Deployed Contracts (Testnet)
+
+| Contract | ID |
+|---|---|
+| auranode-pool | `CDGW4Y626MRU3MSXH4HUKEQWIQS6UAKAOTZCE7PR7OVAUK5J7UDRFLXB` |
+| auranode-verifier | `CDT4P3FKFLT7K7R6S3VVDXTTDE4SKOOFN4C4LIU7TI37U7LSRX4TRJBS` |
+| enclaveai-contract | `CC6EZQDTQJK3BEDNQ7BXFI5SW4LQAE2BF4RJF4VHBJJ4L4CTVE3PDDUV` |
+
+## Security Model
+
+- **Client-side encryption**: AES-256-GCM in-browser; ciphertext SHA-256 hash goes on-chain as `payload_hash`
+- **SGX attestation**: MRENCLAVE measurement binds model identity to the ZK proof nonce
+- **Economic security**: Nodes stake XLM; invalid proofs trigger automatic 20% slash via `slash_node`
+- **On-chain verification**: Every inference result has a BN254 pairing proof verified by `auranode-verifier`
+- **No central server**: The backend (`backend/`) is a legacy component; the production path is browser → Soroban → daemon → enclave → verifier
+
+## Development Setup
+
+```bash
+# Contracts
+rustup target add wasm32v1-none
+cargo build --release --target wasm32v1-none --package auranode-pool --package auranode-verifier --package enclaveai-contract
+cargo test --package auranode-pool --package auranode-verifier --package enclaveai-contract
+
+# Frontend
+cd frontend && npm install && npm run dev
+
+# ZK proofs (requires nargo >= 0.36)
+./scripts/prove.sh
+
+# Deploy to testnet (requires stellar CLI >= 26)
+./scripts/deploy-contracts.sh
 ```
-src/
-  app/                    # Next.js app router
-    layout.tsx           # Root layout with theme provider
-    page.tsx             # Main dashboard
-    globals.css          # Global styles
-  components/
-    ui/                  # Reusable UI components
-      button.tsx
-      card.tsx
-      progress.tsx
-      tabs.tsx
-      toast.tsx
-  hooks/
-    use-stellar-wallet.ts    # Stellar wallet management
-    use-tee-connection.ts    # TEE connection handling
-  lib/
-    utils.ts             # Utility functions
-```
-
-### Backend (Node.js/Express)
-
-**Technology Stack:**
-- Express.js REST API
-- Stellar SDK integration
-- Winston logging
-- JWT authentication
-- Multer for file uploads
-
-**Key Features:**
-- TEE node management and health monitoring
-- Request routing and load balancing
-- Stellar transaction validation
-- Processing queue management
-- API rate limiting and security
-
-**Architecture:**
-```
-src/
-  server.js              # Main server entry point
-  middleware/            # Express middleware
-  routes/                # API route handlers
-  services/              # Business logic
-  models/                # Data models
-  utils/                 # Utility functions
-```
-
-**API Endpoints:**
-- `GET /health` - Health check
-- `GET /api/network/status` - Network statistics
-- `POST /api/process` - Submit processing request
-- `GET /api/process/:requestId/status` - Get request status
-- `GET /api/process/history` - Processing history
-- `POST /api/stellar/validate` - Validate Stellar transaction
-- `POST /api/tee/heartbeat/:nodeId` - TEE node heartbeat
-
-### Smart Contracts (Stellar Soroban)
-
-**Technology Stack:**
-- Rust programming language
-- Soroban SDK
-- Stellar blockchain
-
-**Key Features:**
-- TEE node registration and staking
-- Request processing coordination
-- Reputation system
-- Fee management
-- Network governance
-
-**Contract Structure:**
-```rust
-// Main contract functions
-initialize()              // Initialize contract
-register_node()           // Register new TEE node
-approve_node()            // Approve node (admin only)
-submit_request()          // Submit processing request
-update_request_status()   // Update request status
-node_heartbeat()          // Node heartbeat
-get_network_stats()       // Get network statistics
-get_tee_nodes()          // Get all TEE nodes
-get_client_requests()     // Get client requests
-update_node_reputation()  // Update reputation (admin)
-remove_node()            // Remove node (admin only)
-```
-
-## Security Architecture
-
-### Trusted Execution Environments (TEEs)
-
-TEEs provide hardware-level isolation for sensitive computations:
-
-1. **Intel SGX** - Software Guard Extensions
-2. **AMD SEV** - Secure Encrypted Virtualization
-3. **ARM TrustZone** - Hardware security extensions
-
-**Security Guarantees:**
-- Data confidentiality within the enclave
-- Code integrity verification
-- Remote attestation
-- Memory encryption
-
-### Data Flow Security
-
-1. **Client Upload**: Files encrypted client-side
-2. **Network Transfer**: TLS 1.3 encryption
-3. **TEE Processing**: Hardware-enforced isolation
-4. **Result Return**: Encrypted response channel
-
-### Blockchain Security
-
-1. **Smart Contract Auditing**: Formal verification
-2. **Node Staking**: Economic security
-3. **Reputation System**: Quality assurance
-4. **Transaction Validation**: Stellar consensus
-
-## Privacy Features
-
-### Zero-Knowledge Processing
-
-- Input data never leaves the TEE unencrypted
-- Processing occurs in isolated memory
-- Results returned without exposing original data
-- No persistent storage of sensitive information
-
-### Data Sovereignty
-
-- Client maintains control of encryption keys
-- No central data storage
-- Decentralized node selection
-- Audit trail without data exposure
-
-### Regulatory Compliance
-
-- GDPR compliance through data minimization
-- HIPAA compatibility for healthcare data
-- Financial data protection (PCI DSS)
-- Legal data residency requirements
-
-## Network Architecture
-
-### TEE Node Management
-
-```
-+----------------+     +----------------+     +----------------+
-|   Node 1       |     |   Node 2       |     |   Node 3       |
-|                |     |                |     |                |
-| - SGX Enclave  |     | - SEV Enclave  |     | - TrustZone    |
-| - AI Models    |     | - AI Models    |     | - AI Models    |
-| - Health Check |     | - Health Check |     | - Health Check |
-+----------------+     +----------------+     +----------------+
-       |                       |                       |
-       +-----------------------+-----------------------+
-                               |
-                        +----------------+
-                        |   Backend API  |
-                        |                |
-                        | - Load Balance |
-                        | - Health Mon   |
-                        | - Queue Mgmt   |
-                        +----------------+
-```
-
-### Request Processing Flow
-
-1. **Client Request**: Submit encrypted data
-2. **Node Selection**: Choose available TEE node
-3. **Processing**: Execute in secure enclave
-4. **Verification**: Validate processing integrity
-5. **Result Return**: Deliver encrypted results
-6. **Blockchain Update**: Record transaction on Stellar
-
-## Deployment Architecture
-
-### Development Environment
-
-```
-docker-compose.yml
-  frontend:     React dev server (port 3000)
-  backend:      Node.js API (port 3001)
-  stellar:      Stellar testnet (external)
-  redis:        Request queue (port 6379)
-```
-
-### Production Environment
-
-```
-Kubernetes Cluster
-  - Frontend pods (Next.js)
-  - Backend pods (Node.js)
-  - TEE nodes (Secure hardware)
-  - Load balancer (NGINX)
-  - Monitoring (Prometheus/Grafana)
-```
-
-## Monitoring and Observability
-
-### Metrics Collection
-
-- **System Metrics**: CPU, memory, network
-- **Application Metrics**: Request rate, processing time
-- **Business Metrics**: Active users, completed requests
-- **Security Metrics**: Failed authentications, anomalies
-
-### Logging Strategy
-
-- **Structured Logging**: JSON format
-- **Log Levels**: Error, warn, info, debug
-- **Centralized Collection**: ELK stack
-- **Retention Policy**: 30 days standard, 1 year audit
-
-### Alerting
-
-- **System Health**: Node downtime, high latency
-- **Security**: Failed login attempts, anomalous traffic
-- **Business**: Processing failures, queue buildup
-- **Compliance**: Data access violations
-
-## Scalability Considerations
-
-### Horizontal Scaling
-
-- **Frontend**: CDN + edge caching
-- **Backend**: Auto-scaling based on load
-- **TEE Nodes**: Dynamic pool management
-- **Blockchain**: Stellar handles throughput
-
-### Performance Optimization
-
-- **Caching**: Redis for frequent data
-- **Load Balancing**: Round-robin node selection
-- **Connection Pooling**: Database connections
-- **Compression**: Data transfer optimization
-
-## Disaster Recovery
-
-### Backup Strategy
-
-- **Code**: Git repository with multiple remotes
-- **Configuration**: Infrastructure as code
-- **Data**: Encrypted backups with versioning
-- **Contracts**: Immutable blockchain records
-
-### Recovery Procedures
-
-1. **System Failure**: Auto-failover to backup nodes
-2. **Data Corruption**: Restore from encrypted backups
-3. **Security Breach**: Isolate affected components
-4. **Blockchain Issues**: Contract upgrade procedures
-
-## Future Enhancements
-
-### Advanced Features
-
-- **Multi-party Computation**: Collaborative processing
-- **Homomorphic Encryption**: Compute on encrypted data
-- **Zero-Knowledge Proofs**: Verifiable computation
-- **Cross-chain Integration**: Multi-blockchain support
-
-### Performance Improvements
-
-- **Edge Computing**: Local TEE deployment
-- **Quantum Resistance**: Post-quantum cryptography
-- **AI Optimization**: Model compression and acceleration
-- **Network Optimization**: P2P node communication

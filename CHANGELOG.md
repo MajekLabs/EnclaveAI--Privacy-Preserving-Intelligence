@@ -1,118 +1,52 @@
 # Changelog
 
-All notable changes to EnclaveAI will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes to AuraNode are documented here.
 
 ## [Unreleased]
 
-### Added
-- Initial project scaffolding
-- React frontend with modern UI components
-- Node.js backend with TEE integration
-- Stellar smart contracts for decentralized network
-- Comprehensive documentation
-- Docker development environment
-- CI/CD pipeline configuration
-
-### Security
-- End-to-end encryption for data processing
-- TEE-based secure computation
-- Stellar blockchain integration for transparency
-- JWT-based authentication
-- Input validation and sanitization
-
-## [1.0.0] - 2026-04-11
+## [1.1.0] - 2026-05-18
 
 ### Added
-- **Frontend**
-  - Next.js 14 with TypeScript
-  - Tailwind CSS with shadcn/ui components
-  - Stellar wallet integration (Freighter)
-  - Real-time processing status updates
-  - Network monitoring dashboard
-  - File upload interface with encryption
+- `/validators` page: live node stats from `auranode-pool` via Soroban RPC (stake, success rate, tasks, age, attestation key)
+- `useNodePool` hook: fetches node data from Soroban RPC with 15s auto-refresh
+- `tsconfig.json` with `@/*` path alias (was missing, broke builds)
+- `.github/workflows/ci.yml`: CI pipeline for contracts (build + test), frontend (build), and node-daemon
+- `.env.contracts`: real testnet contract IDs
+- `scripts/deploy-contracts.sh`: full deployment script using stellar CLI 26
+- `scripts/prove.sh`: nargo prove integration with CLI argument overrides
 
-- **Backend**
-  - Express.js REST API
-  - TEE node management system
-  - Request processing queue
-  - Stellar transaction validation
-  - Comprehensive logging with Winston
-  - Health monitoring and heartbeat system
+### Changed
+- Upgraded all contracts to soroban-sdk 26 (from 20/22)
+- Replaced `#![no_std]` with `#![cfg_attr(target_family = "wasm", no_std)]` for correct test compilation
+- Build target changed from `wasm32-unknown-unknown` to `wasm32v1-none` (required by soroban-sdk 26)
+- `auranode-verifier`: updated BN254 API to `env.crypto().bn254()` (soroban-sdk 26 CAP-0080)
+- `auranode-verifier`: G2 point size corrected to 128 bytes
+- `smart-contracts/src/enclave_contract.rs`: replaced Vec-based instance storage with proper persistent/temporary storage, real token transfers, CAP-0078/0082
+- Playground: wired to real Freighter API (`@stellar/freighter-api`) and real `InvokeHostFunction` XDR via `@stellar/stellar-sdk`
+- `frontend/next.config.js`: removed deprecated `experimental.appDir`
+- `frontend/package.json`: removed non-existent `@radix-ui/react-badge` dependency
+- `frontend/src/components/ui/toaster.tsx`: stubbed (referenced missing files)
 
-- **Smart Contracts**
-  - Stellar Soroban contracts in Rust
-  - TEE node registration and staking
-  - Processing request coordination
-  - Reputation system for nodes
-  - Fee management and distribution
-  - Network governance functions
+### Fixed
+- All 4 contract tests pass: `test_register_and_submit`, `test_slash_on_failure`, `test_initialize_and_set_vk`, `enclaveai::test_register_and_submit`
+- Frontend builds cleanly with zero TypeScript errors
 
-- **Security**
-  - Zero-knowledge processing architecture
-  - Hardware-level TEE isolation
-  - End-to-end encryption
-  - Secure enclave verification
-  - Blockchain-based audit trail
+### Deployed (Stellar Testnet)
+- `auranode-pool`: `CDGW4Y626MRU3MSXH4HUKEQWIQS6UAKAOTZCE7PR7OVAUK5J7UDRFLXB`
+- `auranode-verifier`: `CDT4P3FKFLT7K7R6S3VVDXTTDE4SKOOFN4C4LIU7TI37U7LSRX4TRJBS`
+- `enclaveai-contract`: `CC6EZQDTQJK3BEDNQ7BXFI5SW4LQAE2BF4RJF4VHBJJ4L4CTVE3PDDUV`
 
-- **Infrastructure**
-  - Docker containerization
-  - Kubernetes deployment manifests
-  - CI/CD pipeline with GitHub Actions
-  - Monitoring with Prometheus/Grafana
-  - SSL/TLS configuration
-  - Automated backups
+## [1.0.0] - 2026-05-18
 
-### Documentation
-- Comprehensive architecture documentation
-- Deployment guide for multiple environments
-- API documentation
-- Smart contract documentation
-- Security considerations
-- Contributing guidelines
+### Added
+- `auranode-pool` Soroban contract: node registration, staking, task escrow, bounty release, slash (CAP-0078, CAP-0082)
+- `auranode-verifier` Soroban contract: UltraPlonk proof verification using CAP-0080 BN254 host functions
+- Noir ZK circuit (`circuits/src/main.nr`): UltraPlonk inference verification with Pedersen hash constraints
+- `node-daemon`: Rust daemon subscribing to Horizon SSE, routing tasks to SGX enclave, submitting proofs
+- Next.js 15 frontend: landing page, E2EE playground, validators page
+- `Prover.toml` with sample witness inputs; `circuits/proofs/inference_verify.proof` sample proof
 
-### Testing
-- Unit tests for all components
-- Integration tests for API endpoints
-- Smart contract tests
-- End-to-end workflow tests
-- Security testing framework
-
-## [Future Releases]
-
-### Planned Features
-- Multi-party computation support
-- Homomorphic encryption integration
-- Zero-knowledge proof verification
-- Cross-chain blockchain support
-- Advanced AI model optimization
-- Mobile application
-- Enterprise features
-- Regulatory compliance tools
-
-### Performance Improvements
-- Edge computing deployment
-- Quantum-resistant cryptography
-- Advanced caching strategies
-- Load balancing optimization
-- Database performance tuning
-
-### Security Enhancements
-- Formal verification of smart contracts
-- Advanced threat detection
-- Privacy-preserving analytics
-- Secure multi-party computation
-- Enhanced audit capabilities
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0.0 | 2026-04-11 | Initial release with complete EnclaveAI platform |
-| 0.9.0 | 2026-03-15 | Beta release with core functionality |
-| 0.5.0 | 2026-02-01 | Alpha release with basic features |
-| 0.1.0 | 2026-01-15 | Initial prototype
+### Initial commit
+- Legacy `backend/` (Node.js/Express): TEE node management, request routing, Stellar transaction validation
+- Legacy `smart-contracts/` (original enclave_contract.rs): basic node/request management
+- `docs/ARCHITECTURE.md`, `docs/DEPLOYMENT.md`, `CONTRIBUTING.md`
